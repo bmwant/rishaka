@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Most Wanted'
+import warnings
+
+from warnings import warn
+
 from colorama import init
 from colorama import Fore, Back, Style
 
 
 init(autoreset=True)
+warnings.simplefilter('always')
 
 
 class Field(object):
@@ -20,6 +25,7 @@ class Field(object):
 
     @property
     def width(self):
+        # Assuming that all rows are of the same width
         return len(self.SHAPE[0])
 
     @property
@@ -40,19 +46,19 @@ class Field(object):
         pos = (i_row + i_col) % 2
         upper_left = piece[0][0]
         if pos == 1 and upper_left == '^':
-            print('Parity mismatch for up triangle')
+            warn('Parity mismatch for up triangle')
             return False
 
         if pos == 0 and upper_left == 'V':
-            print('Parity mismatch for down triangle')
+            warn('Parity mismatch for down triangle')
             return False
 
         if i_col + piece.width > self.width:
-            print('To long for field')
+            warn('To long for field')
             return False
 
         if i_row + piece.height > self.height:
-            print('To high for field')
+            warn('To high for field')
             return False
 
         field = self.SHAPE
@@ -85,7 +91,7 @@ class Field(object):
             p_i, p_j = location
             rel_i = i - p_i
             rel_j = j - p_j
-            if rel_i >= 0 and rel_i < piece.height and rel_j >=0 and rel_j < piece.width:
+            if 0 <= rel_i < piece.height and 0 <= rel_j < piece.width:
                 if piece.check_hit(rel_i, rel_j):
                     return piece.color
         return ''
@@ -93,7 +99,6 @@ class Field(object):
     def print_me(self):
         for i in range(self.height):
             for j in range(self.width):
-                location = (i, j)
                 color = self.get_color(i, j)
                 print(color + self.SHAPE[i][j], end='')
             print()
@@ -315,5 +320,5 @@ if __name__ == '__main__':
     print(piece1)
     pr1 = rotate_piece(piece1)
     pr2 = rotate_piece(pr1)
-    field.place_piece(piece1, 0, 3)
+    field.place_piece(piece1, 0, 1)
     field.print_me()
