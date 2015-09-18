@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Most Wanted'
+from colorama import init
+from colorama import Fore, Back, Style
+
+
+init(autoreset=True)
 
 
 class Field(object):
@@ -20,6 +25,9 @@ class Field(object):
     @property
     def height(self):
         return len(self.SHAPE)
+
+    def __init__(self):
+        self.pieces = {}  # Contains top left position of piece on the field as key and a piece as value
 
     def __str__(self):
         result = ''
@@ -69,6 +77,27 @@ class Field(object):
                 j_field = i_col + j
                 field[i_field][j_field] = piece[i][j]
 
+        piece_location = (i_row, i_col)
+        self.pieces[piece_location] = piece
+
+    def get_color(self, i, j):
+        for location, piece in self.pieces.items():
+            p_i, p_j = location
+            rel_i = i - p_i
+            rel_j = j - p_j
+            if rel_i >= 0 and rel_i < piece.height and rel_j >=0 and rel_j < piece.width:
+                if piece.check_hit(rel_i, rel_j):
+                    return piece.color
+        return ''
+
+    def print_me(self):
+        for i in range(self.height):
+            for j in range(self.width):
+                location = (i, j)
+                color = self.get_color(i, j)
+                print(color + self.SHAPE[i][j], end='')
+            print()
+
 
 PIECE1 = [
     ['v', '^', 'v'],
@@ -82,8 +111,14 @@ PIECE2 = [
 
 
 class Piece(object):
+    COLORS = [Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA, Fore.CYAN, Fore.WHITE]
+    TOTAL_PIECES = 0
+
     def __init__(self, shape):
         self.shape = shape
+        self.TOTAL_PIECES += 1
+        color_index = len(self.COLORS) % self.TOTAL_PIECES
+        self.color = self.COLORS[color_index]
 
     def __str__(self):
         result = ''
@@ -106,14 +141,36 @@ class Piece(object):
     def __getitem__(self, index):
         return self.shape[index]
 
+    def check_hit(self, i, j):
+        if self.shape[i][j] != Field.EMPTY:
+            return True
+        return False
 
-def rotate_piece(piece, rotation_point):
+
+def rotate_piece(piece):
     """
     Rotate piece clockwise and return resulting piece
     :param piece: piece to rotate
     :param rotation_point: starting point to rotate around
     :return: rotated piece
     """
+    # Find first non-empty point for top-left
+    fi, fj = 0, 0
+    found = False
+    for i in range(piece.height):
+        for j in range(piece.width):
+            if piece[i][j] != Field.EMPTY:
+                fi = i
+                fj = j
+                found = True
+                break
+        if found:
+            break
+    if not found:
+        raise ValueError('Empty piece')
+
+    rotation_point = (fi, fj)
+    print(rotation_point)
     used = [rotation_point]
     new_coords = [[0, 0]]
     queue = [rotation_point]
@@ -122,7 +179,6 @@ def rotate_piece(piece, rotation_point):
         current_point = piece[i][j]
         li, lj = new_coords[-1]  # last new coordinates of parent
 
-        print('Current point', i, j)
         if current_point == '^':  # look for left, right, and bottom
             if j-1 >= 0 and piece[i][j-1] != Field.EMPTY:  # look left
                 new_point = (i, j-1)
@@ -257,4 +313,7 @@ if __name__ == '__main__':
     """
     piece1 = Piece(PIECE1)
     print(piece1)
-    print(rotate_piece(piece1, (0, 0)))
+    pr1 = rotate_piece(piece1)
+    pr2 = rotate_piece(pr1)
+    field.place_piece(piece1, 0, 3)
+    field.print_me()
