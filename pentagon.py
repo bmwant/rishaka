@@ -7,7 +7,6 @@ from warnings import warn
 from colorama import init
 from colorama import Fore, Back, Style
 
-
 init(autoreset=True)
 warnings.simplefilter('always')
 
@@ -43,13 +42,15 @@ class Field(object):
         return result
 
     def can_locate_piece(self, piece, i_row: int, i_col: int) -> bool:
-        pos = (i_row + i_col) % 2
-        upper_left = piece[0][0]
-        if pos == 1 and upper_left == '^':
+        col_pos, first_item = piece.get_first_row_item()
+
+        pos = (i_row + i_col + col_pos) % 2
+        print('Pos', pos, 'first item', first_item)
+        if pos == 1 and first_item == '^':
             warn('Parity mismatch for up triangle')
             return False
 
-        if pos == 0 and upper_left == 'V':
+        if pos == 0 and first_item == 'v':
             warn('Parity mismatch for down triangle')
             return False
 
@@ -151,6 +152,10 @@ class Piece(object):
             return True
         return False
 
+    def get_first_row_item(self):
+        for index in range(self.width):
+            if self.shape[0][index] != Field.EMPTY:
+                return index, self.shape[0][index]
 
 def rotate_piece(piece):
     """
@@ -317,8 +322,6 @@ if __name__ == '__main__':
     print(field)
     """
     piece1 = Piece(PIECE1)
-    print(piece1)
-    pr1 = rotate_piece(piece1)
-    pr2 = rotate_piece(pr1)
-    field.place_piece(piece1, 0, 1)
-    field.print_me()
+    piece2 = Piece(PIECE2)
+    print(field.can_locate_piece(piece1, 0, 2))
+    print(field.can_locate_piece(piece2, 0, 2))
