@@ -115,6 +115,41 @@ PIECE2 = [
     ['v', '^', 'v'],
 ]
 
+PIECE3 = [
+    ['v', '^', 'v', '^', 'v', '^']
+]
+
+PIECE4 = [
+    ['^', ' ', ' ', ' ', ' '],
+    ['v', '^', 'v', '^', 'v'],
+]
+
+PIECE5 = [
+    [' ', ' ', '^', 'v', '^'],
+    ['v', '^', 'v', ' ', ' '],
+]
+
+PIECE6 = [
+    ['v', '^', 'v', ' '],
+    [' ', 'v', '^', 'v'],
+]
+
+PIECE7 = [
+    [' ', ' ', ' ', '^', ' '],
+    ['^', 'v', '^', 'v', '^'],
+]
+
+PIECE8 = [
+    ['v', '^', ' ', ' ', ' '],
+    [' ', 'v', '^', 'v', '^'],
+]
+
+PIECE9 = [
+    [' ', '^', ' '],
+    [' ', 'v', '^'],
+    ['v', '^', 'v'],
+]
+
 
 class Piece(object):
     COLORS = [Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA, Fore.CYAN, Fore.WHITE]
@@ -122,8 +157,8 @@ class Piece(object):
 
     def __init__(self, shape):
         self.shape = shape
-        self.TOTAL_PIECES += 1
-        color_index = len(self.COLORS) % self.TOTAL_PIECES
+        color_index = Piece.TOTAL_PIECES % len(self.COLORS)
+        Piece.TOTAL_PIECES += 1
         self.color = self.COLORS[color_index]
 
     def __str__(self):
@@ -154,8 +189,14 @@ class Piece(object):
 
     def get_first_row_item(self):
         for index in range(self.width):
-            if self.shape[0][index] != Field.EMPTY:
-                return index, self.shape[0][index]
+            if self[0][index] != Field.EMPTY:
+                return index, self[0][index]
+
+    def print_me(self):
+        for i in range(self.height):
+            for j in range(self.width):
+                print(self.color + self[i][j], end='')
+            print()
 
 def rotate_piece(piece):
     """
@@ -321,7 +362,8 @@ if __name__ == '__main__':
     field.place_piece(piece, 0, 6)
     print(field)
     """
-    piece1 = Piece(PIECE1)
-    piece2 = Piece(PIECE2)
-    print(field.can_locate_piece(piece1, 0, 2))
-    print(field.can_locate_piece(piece2, 0, 2))
+    d = Piece(locals().get('PIECE%d' % 1))
+    print(d)
+    pieces = [Piece(globals().get('PIECE%d' % num)) for num in range(1, 10)]
+    for piece in pieces:
+        piece.print_me()
