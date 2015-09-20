@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Most Wanted'
+import copy
 import warnings
 
 from warnings import warn
@@ -7,8 +8,9 @@ from warnings import warn
 from colorama import init
 from colorama import Fore, Back, Style
 
+
 init(autoreset=True)
-warnings.simplefilter('always')
+warnings.simplefilter('ignore')
 
 
 class Field(object):
@@ -34,6 +36,9 @@ class Field(object):
     def __init__(self):
         self.pieces = {}  # Contains top left position of piece on the field as key and a piece as value
 
+    def __getitem__(self, index):
+        return self.SHAPE[index]
+
     def __str__(self):
         result = ''
         for row in self.SHAPE:
@@ -45,7 +50,7 @@ class Field(object):
         col_pos, first_item = piece.get_first_row_item()
 
         pos = (i_row + i_col + col_pos) % 2
-        print('Pos', pos, 'first item', first_item)
+
         if pos == 1 and first_item == '^':
             warn('Parity mismatch for up triangle')
             return False
@@ -101,7 +106,10 @@ class Field(object):
         for i in range(self.height):
             for j in range(self.width):
                 color = self.get_color(i, j)
-                print(color + self.SHAPE[i][j], end='')
+                if self[i][j] == Field.EMPTY:
+                    print('_', end='')
+                else:
+                    print(color + self[i][j], end='')
             print()
 
 
@@ -155,17 +163,24 @@ class Piece(object):
     COLORS = [Fore.RED, Fore.GREEN, Fore.YELLOW, Fore.BLUE, Fore.MAGENTA, Fore.CYAN, Fore.WHITE]
     TOTAL_PIECES = 0
 
-    def __init__(self, shape):
+    def __init__(self, shape, color=None):
         self.shape = shape
-        color_index = Piece.TOTAL_PIECES % len(self.COLORS)
-        Piece.TOTAL_PIECES += 1
-        self.color = self.COLORS[color_index]
+        if color is None:
+            color_index = Piece.TOTAL_PIECES % len(self.COLORS)
+            Piece.TOTAL_PIECES += 1
+            self.color = self.COLORS[color_index]
+        else:
+            # It's just a rotation of itself
+            self.color = color
 
     def __str__(self):
         result = ''
         for row in self.shape:
             result += ''.join(row) + '\n'
         return result
+
+    def __eq__(self, other):
+        return self.shape == other.shape
 
     @property
     def width(self):
@@ -192,11 +207,20 @@ class Piece(object):
             if self[0][index] != Field.EMPTY:
                 return index, self[0][index]
 
+    def get_rotation_point(self):
+        # Find first non-empty point from top-left in first row
+        for j in range(self.width):
+            if self[0][j] != Field.EMPTY:
+                return 0, j
+
+        raise ValueError('Corrupted piece. First row is empty')
+
     def print_me(self):
         for i in range(self.height):
             for j in range(self.width):
                 print(self.color + self[i][j], end='')
             print()
+
 
 def rotate_piece(piece):
     """
@@ -205,88 +229,71 @@ def rotate_piece(piece):
     :param rotation_point: starting point to rotate around
     :return: rotated piece
     """
-    # Find first non-empty point for top-left
-    fi, fj = 0, 0
-    found = False
-    for i in range(piece.height):
-        for j in range(piece.width):
-            if piece[i][j] != Field.EMPTY:
-                fi = i
-                fj = j
-                found = True
-                break
-        if found:
-            break
-    if not found:
-        raise ValueError('Empty piece')
-
-    rotation_point = (fi, fj)
-    print(rotation_point)
-    used = [rotation_point]
-    new_coords = [[0, 0]]
+    rotation_point = piece.get_rotation_point()
+    # print('Rotate around', rotation_point)
+    ni, nj = rotation_point
+    new_coords = {
+        rotation_point: [ni, nj]
+    }  # begin from rotation points
     queue = [rotation_point]
     while queue:
         i, j = queue.pop()  # current location
         current_point = piece[i][j]
-        li, lj = new_coords[-1]  # last new coordinates of parent
+        li, lj = new_coords[(i, j)]
 
         if current_point == '^':  # look for left, right, and bottom
             if j-1 >= 0 and piece[i][j-1] != Field.EMPTY:  # look left
                 new_point = (i, j-1)
-                if new_point not in used:
+                if new_point not in new_coords:
                     queue.append(new_point)
-                    used.append(new_point)
                     # left moves on top
-                    new_coords.append([li-1, lj])
+                    new_coords[new_point] = [li-1, lj]
 
             if j+1 < piece.width and piece[i][j+1] != Field.EMPTY:  # look right
                 new_point = (i, j+1)
-                if new_point not in used:
+                if new_point not in new_coords:
                     queue.append(new_point)
-                    used.append(new_point)
                     # right moves right
-                    new_coords.append([li, lj+1])
+                    new_coords[new_point] = [li, lj+1]
 
             if i+1 < piece.height and piece[i+1][j] != Field.EMPTY:  # look beneath
                 new_point = (i+1, j)
-                if new_point not in used:
+                if new_point not in new_coords:
                     queue.append(new_point)
-                    used.append(new_point)
                     # bottom moves left
-                    new_coords.append([li, lj-1])
+                    new_coords[new_point] = [li, lj-1]
 
         if current_point == 'v':  # look for left, right and top
             if j-1 >= 0 and piece[i][j-1] != Field.EMPTY:  # look left
                 new_point = (i, j-1)
-                if new_point not in used:
+                if new_point not in new_coords:
                     queue.append(new_point)
-                    used.append(new_point)
                     # left moves left
-                    new_coords.append([li, lj-1])
+                    new_coords[new_point] = [li, lj-1]
 
             if j+1 < piece.width and piece[i][j+1] != Field.EMPTY:  # look right
                 new_point = (i, j+1)
-                if new_point not in used:
+                if new_point not in new_coords:
                     queue.append(new_point)
-                    used.append(new_point)
                     # right moves down
-                    new_coords.append([li+1, lj])
+                    new_coords[new_point] = [li+1, lj]
 
             if i-1 >= 0 and piece[i-1][j] != Field.EMPTY:  # look upward
                 new_point = (i-1, j)
-                if new_point not in used:
+                if new_point not in new_coords:
                     queue.append(new_point)
-                    used.append(new_point)
                     # top moves right
-                    new_coords.append([li, lj+1])
+                    new_coords[new_point] = [li, lj+1]
 
+    # for old_p, new_p in new_coords.items():
+    #     print('::%s->%s' % (old_p, new_p))
     # All coordinates translated, now normalize them
     min_i = 0
     min_j = 0
     max_i = 0
     max_j = 0
 
-    for coord in new_coords:
+    for coord in new_coords.values():
         i, j = coord
         if i < min_i:
             min_i = i
@@ -299,9 +306,9 @@ def rotate_piece(piece):
             max_j = j
 
     # Normalize coords
-    for coord in new_coords:
-        coord[0] -= min_i
-        coord[1] -= min_j
+    for old_p in new_coords:
+        new_coords[old_p][0] -= min_i
+        new_coords[old_p][1] -= min_j
 
     # Size of field for rotated piece
     max_i -= min_i
@@ -309,61 +316,64 @@ def rotate_piece(piece):
 
     # Now move all points to their new locations with changing the direction
     new_shape = [[Field.EMPTY for j in range(max_j+1)] for i in range(max_i+1)]
-    for old_p, new_p in zip(used, new_coords):
-        print('%s -> %s' % (old_p, new_p))
-        elem = piece[old_p[0]][old_p[1]]
+    for old_p, new_p in new_coords.items():
+        # print('%s -> %s' % (old_p, new_p))
+        old_i, old_j = old_p
+        new_i, new_j = new_p
+        elem = piece[old_i][old_j]
         if elem == '^':
-            new_shape[new_p[0]][new_p[1]] = 'v'
+            new_shape[new_i][new_j] = 'v'
 
         if elem == 'v':
-            new_shape[new_p[0]][new_p[1]] = '^'
+            new_shape[new_i][new_j] = '^'
 
-    new_piece = Piece(new_shape)
+    new_piece = Piece(new_shape, color=piece.color)
     return new_piece
+
+
+def piece_rotation(piece):
+    """
+    Yield rotated piece while rotation produces unique elements
+    """
+    initial_piece = piece
+    while True:
+        yield piece
+        piece = rotate_piece(piece)
+        if piece == initial_piece:
+            return
+
+
+class Game(object):
+    def __init__(self, field, pieces):
+        self.field = field
+        self.pieces = pieces
+
+    def solve(self):
+        self.locate_next(self.field, self.pieces)
+
+    def locate_next(self, field, pieces):
+        if not pieces:  # No pieces available
+            print('Solution found!')
+            field.print_me()
+            return
+
+        piece = pieces.pop()
+        print('Trying to locate on field:')
+        print(piece)
+        for i in range(field.height):
+            for j in range(field.width):
+                if field[i][j] == Field.EMPTY:
+                    for rp in piece_rotation(piece):
+                        if field.can_locate_piece(rp, i, j):
+                            same_field = copy.deepcopy(field)
+                            same_field.place_piece(rp, i, j)
+                            same_field.print_me()
+                            self.locate_next(same_field, pieces)
 
 
 if __name__ == '__main__':
     field = Field()
-    """
-    print(field)
-    print(field.width)
-    print(field.height)
-
-    piece = Piece(PIECE2)
-    print(piece)
-    print(piece.width)
-    print(piece.height)
-
-    # True
-    print('===========All to be true============')
-    print(field.can_locate_piece(piece, 0, 2))
-    print(field.can_locate_piece(piece, 1, 1))
-    print(field.can_locate_piece(piece, 2, 0))
-    print(field.can_locate_piece(piece, 3, 1))
-    print(field.can_locate_piece(piece, 4, 2))
-
-    print(field.can_locate_piece(piece, 0, 6))
-    print(field.can_locate_piece(piece, 1, 7))
-    print(field.can_locate_piece(piece, 2, 8))
-    print(field.can_locate_piece(piece, 3, 7))
-    print(field.can_locate_piece(piece, 4, 6))
-
-    # False
-    print('===========All to be false============')
-    print(field.can_locate_piece(piece, 0, 7))
-    print(field.can_locate_piece(piece, 1, 8))
-    print(field.can_locate_piece(piece, 0, 0))
-    print(field.can_locate_piece(piece, 0, 1))
-    print(field.can_locate_piece(piece, 1, 0))
-    print(field.can_locate_piece(piece, 5, 1))
-    print(field.can_locate_piece(piece, 5, 10))
-
-    field.place_piece(piece, 0, 2)
-    field.place_piece(piece, 0, 6)
-    print(field)
-    """
-    d = Piece(locals().get('PIECE%d' % 1))
-    print(d)
     pieces = [Piece(globals().get('PIECE%d' % num)) for num in range(1, 10)]
-    for piece in pieces:
-        piece.print_me()
+
+    g = Game(field, pieces)
+    g.solve()
